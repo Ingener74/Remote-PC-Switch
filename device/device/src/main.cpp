@@ -21,30 +21,17 @@ void setup() {
     WiFi.mode(WIFI_STA);
     WiFiMulti.addAP(SSID, PW);
 
-    // while(WiFi.status() != WL_CONNECTED) {
-    //     delay(500);
-    //     Serial.print(".");
-    // }
-    // Serial.println("");
-
-    // Serial.println("WiFi connected");
-    // Serial.print("IP address: "); Serial.println(WiFi.localIP());
-
     // Keyboard.begin();
 }
 
-// const char* wheel = "|/-\\";
 void loop() {
-    // for (int i = 0; i < 4; ++i) {
-    //     Serial.print(wheel[i]); Serial.print("\r");
-    //     delay(100);
-    // }
-
     if ((WiFiMulti.run() == WL_CONNECTED)) {
         WiFiClient client;
         HTTPClient http;
+        Serial.printf("[WiFi] local address: %s\r", client.localIP().toString().c_str());
+        delay(1000);
         Serial.printf("[HTTP] begin...%*s\r", 40, " ");
-        if (http.begin(client, "http://172.20.10.4:8000/")) {
+        if (http.begin(client, "http://172.20.10.4:5000/")) {
             int httpCode = http.GET();
 
             if (httpCode > 0) {
