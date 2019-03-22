@@ -9,6 +9,9 @@
 const char* SSID = "iPhone";
 const char* PW = "f0755vhxgasa9";
 
+const char* HOME_SSID = "Ingener74";
+const char* HOME_PW = "pavel1986";
+
 ESP8266WiFiMulti WiFiMulti;
 
 void setup() {
@@ -18,8 +21,12 @@ void setup() {
     "Start"
     "\n");
 
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, HIGH);
+
     WiFi.mode(WIFI_STA);
     WiFiMulti.addAP(SSID, PW);
+    WiFiMulti.addAP(HOME_SSID, HOME_PW);
 }
 
 void loop() {
@@ -29,7 +36,9 @@ void loop() {
         Serial.printf("[WiFi] local address: %s\r", client.localIP().toString().c_str());
         delay(1000);
         Serial.printf("[HTTP] begin...%*s\r", 40, " ");
-        if (http.begin(client, "http://172.20.10.4:5000/esp8266/QUERY")) {
+        // const char* iphone_query = "http://172.20.10.4:5000/esp8266/QUERY";
+        const char* home_query = "http://192.168.1.102:5000/esp8266/QUERY";
+        if (http.begin(client, home_query)) {
             int httpCode = http.GET();
 
             if (httpCode > 0) {
@@ -48,8 +57,14 @@ void loop() {
                         delay(1000);
                         return;
                     } else {
-                        const char* act = doc["act"];
-                        Serial.printf("Received act: %s%*s\r", act, 40, " ");
+                        String act = doc["act"];
+                        Serial.printf("Received act: %s%*s\r", act.c_str(), 40, " ");
+
+                        if (act == "POWER_ON") {
+                            digitalWrite(LED_BUILTIN, LOW);
+                        } else if (act == "POWER_OFF") {
+                            digitalWrite(LED_BUILTIN, HIGH);
+                        }
 
                         delay(2000);
                     }
