@@ -6,7 +6,7 @@ setInterval(function() {
     $.ajax({
         url: '/esp8266_status',
         success: function (result) {
-            if (result['status'] == 'OFFLINE') {
+            if (result['status'] === 'OFFLINE') {
                 $('#offline_div').show();
                 $('#online_div').hide();
             } else {
@@ -34,3 +34,7 @@ $("#switch_off").on("click", function() {
 });
 
 console.log("Done");
+
+$("#switch_off").on("click", function () {
+
+});
