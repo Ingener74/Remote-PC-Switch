@@ -13,6 +13,8 @@ class MainWidget(QWidget):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
+    bundle = NSBundle
+
     main_widget = MainWidget()
     main_widget.show()
 
