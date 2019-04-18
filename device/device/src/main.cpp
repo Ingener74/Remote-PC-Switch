@@ -170,7 +170,7 @@ void loop() {
             delay(1000);
         }*/
 
-        const char* home = "http://192.168.1.102:5000";
+        const char* home = "http://192.168.1.108:8080";
         // const char* vps = "http://192.168.1.102:5000";
 
         query(home, http, client);

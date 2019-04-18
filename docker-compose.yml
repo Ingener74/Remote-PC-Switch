@@ -3,15 +3,14 @@ version: "3"
 services:
   app:
     build: backend
+    image: rpcs:v0.0.1
     ports:
       - 5000:5000
 
   nginx:
     build: nginx
+    image: nginx_rpcs:v0.0.1
     ports:
-      - 80:80
-    restart: always
-    volumes:
-      - ./backend/static/:/usr/share/nginx/html
+      - 8080:80
     depends_on:
       - app
