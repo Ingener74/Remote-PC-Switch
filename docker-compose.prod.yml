@@ -2,14 +2,12 @@ version: "3"
 
 services:
   app:
-    build: backend
-    image: rpcs:v0.0.1
+    image: shnaiderpavel/rpcs_app:v0.0.1
     ports:
       - 5000:5000
 
   nginx:
-    build: nginx
-    image: nginx_rpcs:v0.0.1
+    image: shnaiderpavel/rpcs_nginx:v0.0.1
     ports:
       - 80:80
     depends_on:

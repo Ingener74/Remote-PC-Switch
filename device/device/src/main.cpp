@@ -120,6 +120,7 @@ void loop() {
         Serial.printf("[WiFi] local address: %s\r", client.localIP().toString().c_str());
         delay(1000);
         Serial.printf("[HTTP] begin...%*s\r", 40, " ");
+        
         // const char* iphone_query = "http://172.20.10.4:5000/esp8266/QUERY";
         // const char* home_query = "http://192.168.1.102:5000/esp8266/QUERY";
         
@@ -170,8 +171,7 @@ void loop() {
             delay(1000);
         }*/
 
-        const char* home = "http://192.168.1.108:8080";
-        // const char* vps = "http://192.168.1.102:5000";
+        const char* home = "http://142.93.141.232";
 
         query(home, http, client);
 
