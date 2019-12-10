@@ -28,24 +28,22 @@ class SerialPortThread(QThread):
         self.commands: List[bytes] = []
 
     def run(self):
-        input_string = ''
         print(self.device_path)
         try:
             # check port permissions
             # https://stackoverflow.com/questions/1861836/checking-file-permissions-in-linux-with-python
             # https://stackoverflow.com/questions/539133/python-test-directory-permissions
-            s = serial.Serial(self.device_path, 115200)
+            s = serial.Serial(self.device_path, 115200, timeout=0.1)
             while s.isOpen():
-                d = s.read()
-                # print(d)
-                if d == b'\r' or d == b'\n':
-                    input_string += d.decode('ascii')
-                    self.on_data.emit(input_string)
-                    input_string = ''
-                else:
-                    input_string += d.decode('ascii')
+                d = s.readline()
+                try:
+                    if d is not bytes():
+                        print(d)
+                        self.on_data.emit(d.decode('ascii'))
 
-                self.__send_command(s)
+                    self.__send_command(s)
+                except:
+                    print('Error')
         except (SerialException) as e:
             self.on_error.emit(f'Serial error {e}')
         except (UnicodeDecodeError) as e:
@@ -78,6 +76,7 @@ class SerialPortThread(QThread):
     @Slot()
     def send_command(self, command: bytes):
         self.commands_mutex.lock()
+        print(f'Send command: {command}')
         self.commands += [command]
         self.commands_mutex.unlock()
 

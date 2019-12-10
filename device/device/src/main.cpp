@@ -43,7 +43,7 @@ void setup()
     StaticJsonDocument<64> response;
     response["start"] = "start";
     String s;
-    serializeJsonPretty(response, s);
+    serializeJson(response, s);
     Serial.println(s);
     
     StaticJsonDocument<256> settings;
@@ -172,6 +172,7 @@ int LoadSettings(StaticJsonDocument<256>& settings) {
 
     String s = f.readString();
     deserializeJson(settings, s);
+    SPIFFS.end();
     return 0;
 }
 
@@ -223,7 +224,9 @@ void on_show_settings_command()
     StaticJsonDocument<256> settings;
     int r = LoadSettings(settings);
     if (r == 0) {
-        response["settings"] = settings.to<JsonObject>();
+        String s;
+        serializeJson(settings, s);
+        response["settings"] = s; //settings.to<JsonObject>();
     } else {
         response["cant load settings"] = r;
     }
