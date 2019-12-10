@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'res/MainWidget.ui',
-# licensing of 'res/MainWidget.ui' applies.
+# Form implementation generated from reading ui file 'pc_client\res\MainWidget.ui',
+# licensing of 'pc_client\res\MainWidget.ui' applies.
 #
-# Created: Thu Apr 25 17:07:32 2019
-#      by: pyside2-uic  running on PySide2 5.12.2
+# Created: Tue Dec 10 11:23:28 2019
+#      by: pyside2-uic  running on PySide2 5.13.2
 #
 # WARNING! All changes made in this file will be lost!
 

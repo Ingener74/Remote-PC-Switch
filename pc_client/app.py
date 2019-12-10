@@ -2,6 +2,7 @@
 # -*- coding: utf8 -*-
 import json
 import sys
+import traceback
 from json import JSONDecodeError
 from typing import List
 
@@ -12,8 +13,7 @@ from PySide2.QtGui import QShowEvent
 from PySide2.QtWidgets import QApplication, QWidget
 from serial import SerialException
 
-from pc_client import Ui_MainWidget
-
+from Ui_MainWidget import Ui_MainWidget
 
 class SerialPortThread(QThread):
     on_data = Signal(str)
@@ -37,6 +37,7 @@ class SerialPortThread(QThread):
             s = serial.Serial(self.device_path, 115200)
             while s.isOpen():
                 d = s.read()
+                # print(d)
                 if d == b'\r' or d == b'\n':
                     input_string += d.decode('ascii')
                     self.on_data.emit(input_string)
@@ -45,8 +46,10 @@ class SerialPortThread(QThread):
                     input_string += d.decode('ascii')
 
                 self.__send_command(s)
-        except (SerialException, UnicodeDecodeError) as e:
-            self.on_error.emit(f'Error {e}')
+        except (SerialException) as e:
+            self.on_error.emit(f'Serial error {e}')
+        except (UnicodeDecodeError) as e:
+            self.on_error.emit(f'Unicode error {e}, {traceback.format_exc()}')
         self.on_stop.emit()
 
     def __send_command(self, serial_port):
@@ -59,7 +62,9 @@ class SerialPortThread(QThread):
             print(f'rest commands: {rest_commands}')
 
             self.commands = rest_commands
+            print(f'1')
             serial_port.write(command)
+            print(f'2')
         self.commands_mutex.unlock()
 
     @Slot()
@@ -88,7 +93,7 @@ class MainWidget(QWidget):
     load_settings = Signal()
 
     def __init__(self, parent=None):
-        super(MainWidget, self).__init__(parent=parent)
+        super(MainWidget, self).__init__(parent)
         self.ui = Ui_MainWidget()
         self.ui.setupUi(self)
 

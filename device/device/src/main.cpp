@@ -8,12 +8,6 @@
 
 #include <FS.h>
 
-const char* SSID = "iPhone";
-const char* PW = "f0755vhxgasa9";
-
-const char* HOME_SSID = "Ingener74";
-const char* HOME_PW = "pavel1986";
-
 const int POWER_PIN = 5;
 bool power = false;
 
@@ -21,8 +15,8 @@ ESP8266WiFiMulti WiFiMulti;
 
 StaticJsonDocument<256> settings;
 
-bool SaveSettings(StaticJsonDocument<256>& settings);
-bool LoadSettings(StaticJsonDocument<256>& settings);
+int SaveSettings(StaticJsonDocument<256>& settings);
+int LoadSettings(StaticJsonDocument<256>& settings);
 
 void setup() {
     Serial.begin(115200);
@@ -41,13 +35,18 @@ void setup() {
     pinMode(POWER_PIN, OUTPUT);
     digitalWrite(POWER_PIN, LOW);
 
-    WiFi.mode(WIFI_STA);
-    WiFiMulti.addAP(SSID, PW);
-    WiFiMulti.addAP(HOME_SSID, HOME_PW);
-    
-    // JsonObject w = settings.createNestedObject("wifi");
-    // w["ssid"] = "foo";
-    // w["pswd"] = "bar";
+    int r = LoadSettings(settings);
+    if (r == 0) {
+        const char* ssid = settings["ssid"];
+        const char* pswd = settings["pswd"];
+        Serial.println(ssid);
+        Serial.println(pswd);
+        WiFi.mode(WIFI_STA);
+        WiFiMulti.addAP(ssid, pswd);    
+    } else {
+        Serial.print("Can't load settings ");
+        Serial.println(r);
+    }
 }
 
 void SendStatus(const char* message) {
@@ -139,49 +138,70 @@ void query(const char* url, HTTPClient& httpClient, WiFiClient& wifiClient) {
     }
 }
 
-bool SaveSettings(StaticJsonDocument<256>& settings) {
+int SaveSettings(StaticJsonDocument<256>& settings) {
     SPIFFS.begin();
 
-    File f = SPIFFS.open("settings.txt", "W");
+    File f = SPIFFS.open("/s.json", "w");
     if (!f) {
-        return false;
+        return 1;
     }
     String s;
     serializeJson(settings, s);
     if (f.println(s) == s.length()) {
         // SPIFFS.end();
-        return true;
+        return 0;
     }
     // SPIFFS.end();
-    return false;    
+    return 2;
 }
 
-bool LoadSettings(StaticJsonDocument<256>& settings) {
+int LoadSettings(StaticJsonDocument<256>& settings) {
     SPIFFS.begin();
 
-    if (!SPIFFS.exists("settings.txt")) {
-        return false;
+    if (!SPIFFS.exists("/s.json")) {
+        return 1;
     }
 
-    File f = SPIFFS.open("settings.txt", "W");
+    File f = SPIFFS.open("/s.json", "r");
     if (!f) {
-        return false;
+        return 2;
     }
 
     String s = f.readString();
     deserializeJson(settings, s);
-    return true;
+    return 0;
+}
+
+typedef void (*on_status_change_t)();
+class MyWiFi {
+public:
+    void update(){
+        wl_status_t status = WiFiMulti.run();
+        if (status == WL_CONNECTED) {
+            
+        }
+    }
+
+private:
+    on_status_change_t _on_connected;
+    on_status_change_t _on_disconnected;
+    wl_status_t status;
 }
 
 void loop() {
+    bool ans = false;
+    StaticJsonDocument<256> response;
+
     if ((WiFiMulti.run() == WL_CONNECTED)) {
         WiFiClient client;
         HTTPClient http;
-        // Serial.printf("[WiFi] local address: %s\r", client.localIP().toString().c_str());
-        SendStatus("[WiFi] local address: ");
-        delay(1000);
-        // Serial.printf("[HTTP] begin...%*s\r", 40, " ");
-        SendStatus("[HTTP] begin...");
+
+        // SendStatus("[WiFi] local address: ");
+        // delay(1000);
+        response["wifi_connected"] = true;
+        ans = true;
+
+        // SendStatus("[HTTP] begin...");
 
         // const char* iphone_query = "http://172.20.10.4:5000/esp8266/QUERY";
         // const char* home_query = "http://192.168.1.102:5000/esp8266/QUERY";
@@ -233,14 +253,17 @@ void loop() {
             delay(1000);
         }*/
 
-        const char* home = "http://142.93.141.232";
+        // const char* home = "http://142.93.141.232";
 
-        query(home, http, client);
+        // query(home, http, client);
 
     } else {
         // Serial.printf("[WiFi] no connection...%*s\r", 40, " ");
-        SendStatus("[WiFi] no connection...");
-        delay(1000);
+        
+        // SendStatus("[WiFi] no connection...");
+        // delay(1000);
+        response["wifi_connected"] = false;
+        ans = true;
     }
 
     int bytes = Serial.available();
@@ -251,11 +274,9 @@ void loop() {
         deserializeJson(command, s);
 
         if (command["c"].as<int>() == 0) { // show settings
-            String set_str;
-            serializeJson(settings, set_str);
-            Serial.println(set_str);
-            
-            delay(1000);
+            response["settings"] = settings.to<JsonObject>();
+            ans = true;
+
         } else if (command["c"].as<int>() == 1) { // add wifi
             if (settings.containsKey("wifi")) {
                 settings["wifi"]["ssid"] = command["p"]["ssid"];
@@ -278,26 +299,24 @@ void loop() {
             delay(1000);
         } else if (command["c"].as<int>() == 2) { // load wifi
             LoadSettings(settings);
-            String set_str;
-            serializeJson(settings, set_str);
-            Serial.println(set_str);
-            delay(1000);
-            
-            SendStatus("Settings loaded");
-            delay(1000);
+            // String set_str;
+            // serializeJson(settings, set_str);
+            // Serial.println(set_str);
+            // delay(1000);            
+            // SendStatus("Settings loaded");
+            // delay(1000);
+        } else if (command["c"].as<int>() == 3) { // ping
+            response["pong"] = true;
+            ans = true;
         } else {
-            Serial.println("Unknown command");
-            Serial.println(s);
-            delay(1000);
+            response["error"] = "Unknown command";
+            ans = true;
         }
-
-        delay(1000);
     }
 
-    SendStatus("Wait.");
-    delay(1000);
-    // SendStatus("Wait..");
-    // delay(1000);
-    // SendStatus("Wait...");
-    // delay(1000);
+    if (ans) {
+        String s;
+        serializeJson(response, s);
+        Serial.println(s);
+    }        
 }
