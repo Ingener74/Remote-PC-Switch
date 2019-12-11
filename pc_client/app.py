@@ -30,9 +30,6 @@ class SerialPortThread(QThread):
     def run(self):
         print(self.device_path)
         try:
-            # check port permissions
-            # https://stackoverflow.com/questions/1861836/checking-file-permissions-in-linux-with-python
-            # https://stackoverflow.com/questions/539133/python-test-directory-permissions
             s = serial.Serial(self.device_path, 115200, timeout=0.1)
             while s.isOpen():
                 d = s.readline()

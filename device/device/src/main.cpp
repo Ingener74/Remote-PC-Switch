@@ -9,11 +9,11 @@
 const int POWER_PIN = 5;
 bool power = false;
 
-int SaveSettings(StaticJsonDocument<256>& settings);
-int LoadSettings(StaticJsonDocument<256>& settings);
-
 WiFier wiFier;
 Commander commander;
+
+int SaveSettings(StaticJsonDocument<256>& settings);
+int LoadSettings(StaticJsonDocument<256>& settings);
 
 void on_connected();
 void on_disconnected();
@@ -146,15 +146,16 @@ int SaveSettings(StaticJsonDocument<256>& settings) {
 
     File f = SPIFFS.open("/s.json", "w");
     if (!f) {
+        SPIFFS.end();
         return 1;
     }
     String s;
     serializeJson(settings, s);
     if (f.println(s) == s.length()) {
-        // SPIFFS.end();
+        SPIFFS.end();
         return 0;
     }
-    // SPIFFS.end();
+    SPIFFS.end();
     return 2;
 }
 
@@ -162,11 +163,13 @@ int LoadSettings(StaticJsonDocument<256>& settings) {
     SPIFFS.begin();
 
     if (!SPIFFS.exists("/s.json")) {
+        SPIFFS.end();
         return 1;
     }
 
     File f = SPIFFS.open("/s.json", "r");
     if (!f) {
+        SPIFFS.end();
         return 2;
     }
 
