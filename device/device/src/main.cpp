@@ -2,26 +2,36 @@
 #include <ArduinoJson.h>
 
 #include <FS.h>
+#include <ESP8266HTTPClient.h>
 
-#include <WiFier.h>
-#include <Commander.h>
+#include "WiFier.h"
+#include "Commander.h"
+#include "Settings.h"
+#include "PeriodTimer.h"
 
 const int POWER_PIN = 5;
 bool power = false;
 
-WiFier wiFier;
-Commander commander;
+bool query_timer_ctrl = false;
+bool build_in_led_ctrl = false;
 
-int SaveSettings(StaticJsonDocument<256>& settings);
-int LoadSettings(StaticJsonDocument<256>& settings);
-
-void on_connected();
+void on_connected(String const&);
 void on_disconnected();
 
-void on_pong_command();
-void on_unknown_command();
-void on_show_settings_command();
-void on_add_ap_command();
+void on_show_settings_command(StaticJsonDocument<128> const&);
+void on_add_ap_command(StaticJsonDocument<128> const&);
+void on_load_wifi_command(StaticJsonDocument<128> const&);
+void on_pong_command(StaticJsonDocument<128> const&);
+void on_unknown_command(StaticJsonDocument<128> const&);
+void on_test_query_command(StaticJsonDocument<128> const&);
+void on_query_timer_ctrl_command(StaticJsonDocument<128> const&);
+void on_build_in_led_command(StaticJsonDocument<128> const&);
+
+void on_query_timer_period();
+
+WiFier wiFier;
+Commander commander;
+PeriodTimer queryTimer(5000, on_query_timer_period);
 
 void setup()
 {
@@ -33,10 +43,14 @@ void setup()
 
     wiFier._on_connected = on_connected;
     wiFier._on_disconnected = on_disconnected;
-    commander._ping = on_pong_command;
     commander._unknown = on_unknown_command;
-    commander._show_settings = on_show_settings_command;
-    commander._add_wifi_ap = on_add_ap_command;
+    commander.commands[SHOW_SETTINGS] = on_show_settings_command;
+    commander.commands[ADD_WIFI] = on_add_ap_command;
+    commander.commands[LOAD_WIFI] = on_load_wifi_command;
+    commander.commands[PING] = on_pong_command;
+    commander.commands[TEST_QUERY] = on_test_query_command;
+    commander.commands[QUERY_TIMER_CTRL] = on_query_timer_ctrl_command;
+    commander.commands[BUILD_IN_LED] = on_build_in_led_command;
 
     Serial.begin(115200);
 
@@ -47,12 +61,10 @@ void setup()
     Serial.println(s);
     
     StaticJsonDocument<256> settings;
-    int r = LoadSettings(settings);
+    int r = Settings::Load(settings);
     if (r == 0) {
         const char* ssid = settings["ssid"];
         const char* pswd = settings["pswd"];
-        Serial.println(ssid);
-        Serial.println(pswd);
         wiFier._wifi.addAP(ssid, pswd);
     } else {
         StaticJsonDocument<64> response;
@@ -141,53 +153,20 @@ void powerOff() {
 //     }
 // }
 
-int SaveSettings(StaticJsonDocument<256>& settings) {
-    SPIFFS.begin();
-
-    File f = SPIFFS.open("/s.json", "w");
-    if (!f) {
-        SPIFFS.end();
-        return 1;
-    }
-    String s;
-    serializeJson(settings, s);
-    if (f.println(s) == s.length()) {
-        SPIFFS.end();
-        return 0;
-    }
-    SPIFFS.end();
-    return 2;
-}
-
-int LoadSettings(StaticJsonDocument<256>& settings) {
-    SPIFFS.begin();
-
-    if (!SPIFFS.exists("/s.json")) {
-        SPIFFS.end();
-        return 1;
-    }
-
-    File f = SPIFFS.open("/s.json", "r");
-    if (!f) {
-        SPIFFS.end();
-        return 2;
-    }
-
-    String s = f.readString();
-    deserializeJson(settings, s);
-    SPIFFS.end();
-    return 0;
-}
-
 void loop() {
     wiFier.update();
     commander.update();
+    queryTimer.update();
 }
 
-void on_connected()
+////////////////////////////////////////////////////////////////
+//////////////////////////// WiFier ////////////////////////////
+////////////////////////////////////////////////////////////////
+void on_connected(String const& ip)
 {
     StaticJsonDocument<64> response;
     response["wifier"] = "connnected";
+    response["ip"] = ip;
     String s;
     serializeJson(response, s);
     Serial.println(s);
@@ -202,7 +181,10 @@ void on_disconnected()
     Serial.println(s);
 }
 
-void on_pong_command()
+///////////////////////////////////////////////////////////////////
+//////////////////////////// Commander ////////////////////////////
+///////////////////////////////////////////////////////////////////
+void on_pong_command(StaticJsonDocument<128> const& command)
 {
     StaticJsonDocument<64> response;
     response["commander"] = "pong";
@@ -211,7 +193,7 @@ void on_pong_command()
     Serial.println(s);
 }
 
-void on_unknown_command()
+void on_unknown_command(StaticJsonDocument<128> const& command)
 {
     StaticJsonDocument<64> response;
     response["commander"] = "i dont know this command";
@@ -220,12 +202,12 @@ void on_unknown_command()
     Serial.println(s);
 }
 
-void on_show_settings_command()
+void on_show_settings_command(StaticJsonDocument<128> const& command)
 {
     StaticJsonDocument<64 + 256> response;
     response["commander"] = "settings";
     StaticJsonDocument<256> settings;
-    int r = LoadSettings(settings);
+    int r = Settings::Load(settings);
     if (r == 0) {
         String s;
         serializeJson(settings, s);
@@ -238,7 +220,7 @@ void on_show_settings_command()
     Serial.println(s);
 }
 
-void on_add_ap_command()
+void on_add_ap_command(StaticJsonDocument<128> const& command)
 {    
     StaticJsonDocument<64> response;
     response["commander"] = "i dont want add ap";
@@ -246,3 +228,86 @@ void on_add_ap_command()
     serializeJson(response, s);
     Serial.println(s);
 }
+
+void on_load_wifi_command(StaticJsonDocument<128> const&)
+{
+    StaticJsonDocument<64> response;
+    response["commander"] = "i dont know that to do";
+    String s;
+    serializeJson(response, s);
+    Serial.println(s);
+}
+
+void on_test_query_command(StaticJsonDocument<128> const& command)
+{
+    StaticJsonDocument<256> response;
+    response["commander"] = "test_query";
+    JsonObject ans = response.createNestedObject("ans");
+    if (wiFier.isConnected()) {
+        WiFiClient client;
+        HTTPClient http;
+
+        if (http.begin(client, command["q"])) {
+            ans["get"] = "ok";
+            
+            int httpCode = http.GET();
+            
+            if (httpCode > 0) {
+                ans["get_code"] = httpCode;
+                
+                if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+                    String payload = http.getString();
+                    ans["payload"] = payload;
+                }
+            } else {
+                ans["get"] = "fail";
+                ans["get_error"] = http.errorToString(httpCode);
+            }
+            http.end();
+        } else {
+            ans["http"] = "fail";
+        }
+    } else {
+        ans["wifi"] = "not connected";
+    }
+    String s;
+    serializeJson(response, s);
+    Serial.println(s);
+}
+
+void on_query_timer_ctrl_command(StaticJsonDocument<128> const& command)
+{
+    StaticJsonDocument<64> response;
+    response["commander"] = "query_timer_ctrl";
+    query_timer_ctrl = command["e"].as<bool>();
+    response["enabled"] = query_timer_ctrl;
+    String s;
+    serializeJson(response, s);
+    Serial.println(s);
+}
+
+void on_build_in_led_command(StaticJsonDocument<128> const& command)
+{
+    StaticJsonDocument<64> response;
+    response["commander"] = "build_in_led_ctrl";
+    build_in_led_ctrl = command["e"].as<bool>();
+    digitalWrite(LED_BUILTIN, build_in_led_ctrl ? LOW : HIGH);
+    response["enabled"] = build_in_led_ctrl;
+    String s;
+    serializeJson(response, s);
+    Serial.println(s);
+}
+/////////////////////////////////////////////////////////////////////
+//////////////////////////// Query timer ////////////////////////////
+/////////////////////////////////////////////////////////////////////
+void on_query_timer_period()
+{    
+    if (query_timer_ctrl) {
+        StaticJsonDocument<64> response;
+        response["query_timer"] = "Hello, I'm query timer";
+        String s;
+        serializeJson(response, s);
+        Serial.println(s);
+    }
+}
+

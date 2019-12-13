@@ -17,11 +17,17 @@ void WiFier::update()
     
     wl_status_t status = _wifi.run();
     if (status == WL_CONNECTED && _status != WL_CONNECTED && _on_connected) {
-        _on_connected();
+        String ip = WiFi.localIP().toString();
+        _on_connected(ip);
     }
     if (status == WL_DISCONNECTED && _status != WL_DISCONNECTED && _on_disconnected) {
         _on_disconnected();
     }
 
     _status = status;
+}
+
+bool WiFier::isConnected() const
+{
+    return _status == WL_CONNECTED;
 }

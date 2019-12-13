@@ -1,2 +1,3 @@
-PySide2>=5.12.2
-shiboken2>=5.12.2
+PySide2
+pyserial
+loguru

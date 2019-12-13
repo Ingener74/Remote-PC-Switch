@@ -1,1 +1,0 @@
-from .MainWidget import Ui_MainWidget
